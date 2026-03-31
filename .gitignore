@@ -38,5 +38,8 @@ application-*.properties
 /nbdist/
 /.nb-gradle/
 
+
+MailSender.java
+
 ### VS Code ###
 .vscode/
