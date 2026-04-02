@@ -35,7 +35,7 @@ public class SpringSecurityConfig {
 			.csrf(csrf -> csrf.disable()) // API는 보통 CSRF 비활성화
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
 			.authorizeHttpRequests(auth -> auth
-				.requestMatchers("/api/auth/**", "/api/userIdCheck", "/api/signup").permitAll()
+				.requestMatchers("/api/auth/**", "/api/userIdCheck", "/api/signup", "/api/signin").permitAll()
 				.anyRequest().authenticated() // 인증된 사용자만 가능
 			)
 			.addFilterBefore(new JwtAuthenticationFilter(tokenProvider),

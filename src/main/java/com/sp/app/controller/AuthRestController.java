@@ -19,12 +19,12 @@ import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(value = "/api/auth/*")
+@RequestMapping(value = "/api")
 @Slf4j
 public class AuthRestController {
 	private final AuthService authService;
 
-	@PostMapping("login")
+	@PostMapping("/signin")
 	public ResponseEntity<?> signin(@RequestBody Map<String, String> requestMap) {
 		try {
 			String username = requestMap.get("login_id");

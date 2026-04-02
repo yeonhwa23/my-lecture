@@ -15,7 +15,6 @@ public class MemberDto {
 	private String password;
 	private String sns_provider;
 	private String sns_id;
-	// private int userLevel;
 	private int enabled;
 	private String created_at;
 	private String update_at;
@@ -37,8 +36,6 @@ public class MemberDto {
 	
 	private String authority;
 	private String oldAuthority;
-	
-	private String rt_value;
 	
 	private long num;
 	private int status_code;
