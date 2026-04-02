@@ -1,38 +1,32 @@
 package com.sp.app.entity.workspace;
+
+import com.sp.app.entity.member.Member;
+import jakarta.persistence.*;
+import lombok.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-import com.sp.app.entity.member.Member;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-/**
- * workspace_members 테이블 매핑
- * 복합 PK: workspace_id + member_id
- */
 @Entity
 @Table(name = "workspace_members")
+@IdClass(WorkspaceMember.WorkspaceMemberId.class)   // ← @IdClass 방식 → findByWorkspaceId 바로 사용 가능
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@IdClass(WorkspaceMember.WorkspaceMemberId.class)
 public class WorkspaceMember {
 
+    // ── 복합 PK (내부 클래스) ──────────────────────────────────
+    @Embeddable
+    @Getter @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @EqualsAndHashCode
+    public static class WorkspaceMemberId implements Serializable {
+        private Long workspaceId;
+        private Long memberId;
+    }
+
+    // ── @IdClass 방식: PK 컬럼을 엔티티에 직접 선언 ──────────
     @Id
     @Column(name = "workspace_id")
     private Long workspaceId;
@@ -41,18 +35,15 @@ public class WorkspaceMember {
     @Column(name = "member_id")
     private Long memberId;
 
-    /** 워크스페이스 내 역할: owner / admin / member */
+    // owner / admin / member
     @Column(name = "ws_role", length = 20)
     @Builder.Default
     private String wsRole = "member";
 
-    @Column(name = "joined_at", updatable = false)
+    @Column(name = "joined_at")
     private LocalDateTime joinedAt;
 
-    // ──────────────────────────────────────────────
-    // 연관관계
-    // ──────────────────────────────────────────────
-
+    // ── 연관관계 (@ManyToOne, insertable=false updatable=false) ─
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", insertable = false, updatable = false)
     private Workspace workspace;
@@ -63,19 +54,7 @@ public class WorkspaceMember {
 
     @PrePersist
     public void prePersist() {
-        this.joinedAt = LocalDateTime.now();
-    }
-
-    // ──────────────────────────────────────────────
-    // 복합 PK 클래스
-    // ──────────────────────────────────────────────
-
-    @Getter @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @EqualsAndHashCode
-    public static class WorkspaceMemberId implements Serializable {
-        private Long workspaceId;
-        private Long memberId;
+        if (joinedAt == null) joinedAt = LocalDateTime.now();
+        if (wsRole   == null) wsRole   = "member";
     }
 }

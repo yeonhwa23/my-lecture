@@ -1,5 +1,7 @@
 package com.sp.app.entity.workspace;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.sp.app.entity.member.Member;
 
@@ -11,6 +13,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
@@ -60,6 +63,12 @@ public class Workspace {
     @JoinColumn(name = "owner_id", nullable = false)
     private Member owner;
 
+    
+    /** 워크스페이스 참여 멤버 목록 */
+    @Builder.Default
+    @OneToMany(mappedBy = "workspace")
+    private List<WorkspaceMember> workspaceMembers = new ArrayList<>();
+    
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
