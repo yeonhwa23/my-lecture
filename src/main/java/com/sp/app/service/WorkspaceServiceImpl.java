@@ -1,18 +1,30 @@
 package com.sp.app.service;
 
-import com.sp.app.domain.dto.WorkspaceDto;
-import com.sp.app.domain.dto.WorkspaceMemberDto;
-import com.sp.app.entity.member.Member;
-import com.sp.app.entity.workspace.Workspace;
-import com.sp.app.entity.workspace.WorkspaceMember;
-import com.sp.app.repository.MemberRepository;
-import com.sp.app.repository.WorkspaceMemberRepository;
-import com.sp.app.repository.WorkspaceRepository;
-import lombok.RequiredArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import com.sp.app.controller.ChatController.ChatMessageResponse;
+import com.sp.app.domain.dto.WorkspaceDto;
+import com.sp.app.domain.dto.WorkspaceMemberDto;
+import com.sp.app.entity.member.Member;
+import com.sp.app.entity.workspace.Channel;
+import com.sp.app.entity.workspace.Message;
+import com.sp.app.entity.workspace.Workspace;
+import com.sp.app.entity.workspace.WorkspaceMember;
+import com.sp.app.repository.ChannelRepository;
+import com.sp.app.repository.MemberRepository;
+import com.sp.app.repository.MessageRepository;
+import com.sp.app.repository.WorkspaceMemberRepository;
+import com.sp.app.repository.WorkspaceRepository;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +34,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final WorkspaceRepository       workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final MemberRepository          memberRepository;
+    private final ChannelRepository channelRepository;
+    private final MessageRepository messageRepository;
 
     @Override
     @Transactional
@@ -148,5 +162,60 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 .orElseThrow(() -> new IllegalArgumentException("대상 멤버가 존재하지 않습니다."));
 
         target.setWsRole(request.getNewRole());
+    }
+    
+    @Override
+    @Transactional
+    public void saveChatMessage(Long channelId, Long memberId, String content) {
+        // 1. 대문자가 아니라 소문자로 시작하는 객체 변수명(channelRepository)을 사용해야 합니다!
+        Channel channel = channelRepository.findById(channelId)
+            .orElseThrow(() -> new IllegalArgumentException("채널을 찾을 수 없습니다."));
+            
+        Member member = memberRepository.findById(memberId)
+            .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+
+        // 2. Message 엔티티 생성
+        Message message = Message.builder()
+                .channel(channel)
+                .member(member)
+                .content(content)
+                .isBot(0) // 일반 유저 메시지
+                .build();
+
+        // 3. 소문자 messageRepository 사용!
+        messageRepository.save(message);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ChatMessageResponse> getChatHistory(Long channelId) {
+        
+        PageRequest pageRequest = PageRequest.of(0, 50);
+        Slice<Message> messageSlice = messageRepository.findByChannelCursor(channelId, LocalDateTime.now(), pageRequest);
+
+        List<Message> messages = messageSlice.getContent();
+        
+        List<ChatMessageResponse> responseList = messages.stream().map(msg -> {
+            ChatMessageResponse response = new ChatMessageResponse();
+            response.setChannelId(channelId);
+            
+            if (msg.getMember() != null) {
+                response.setMemberId(msg.getMember().getMemberId());
+                // ✅ getUsername() 대신 존재하는 메서드인 getLoginId() 사용!
+                // 만약 진짜 이름을 쓰고 싶다면 msg.getMember().getMemberDetail().getName() 으로 쓸 수 있습니다.
+                response.setSenderName(msg.getMember().getLoginId()); 
+            } else {
+                response.setMemberId(-1L);
+                response.setSenderName("알 수 없는 사용자");
+            }
+            response.setContent(msg.getContent());
+            response.setSendTime(msg.getCreatedAt().toString());
+            return response;
+        }).collect(Collectors.toList());
+
+        // 최신순을 오래된 순(위에서 아래로 읽게)으로 뒤집기
+        Collections.reverse(responseList);
+
+        return responseList;
     }
 }

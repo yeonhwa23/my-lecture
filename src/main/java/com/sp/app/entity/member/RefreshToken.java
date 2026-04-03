@@ -24,7 +24,7 @@ public class RefreshToken {
 
     /** Member.refreshToken 의 반대쪽 (FK = login_id) */
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "login_id", insertable = false, updatable = false)
+    @JoinColumn(name = "login_id", referencedColumnName = "login_id", insertable = false, updatable = false)
     private Member member;
 
     public void updateValue(String newValue) {

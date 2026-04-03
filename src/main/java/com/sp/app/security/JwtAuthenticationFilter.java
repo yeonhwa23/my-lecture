@@ -46,6 +46,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
 			throws IOException, ServletException {
+		
+		// 웹소켓 연결(Handshake) 요청은 JWT 검사를 건너뜀.
+	    String path = request.getRequestURI();
+	    if (path.startsWith("/ws-chat")) {
+	        filterChain.doFilter(request, response);
+	        return;
+	    }
 
 		try {
 			// request Header에서 JWT 토큰 추출

@@ -82,7 +82,7 @@ public class SpringSecurityConfig {
 		String[] excludeUri = { "/", "/member/login", "/member/logout",
 				"/member/pwdFind", "/member/expired", "/dist/**",
 				"/uploads/image/**", "/uploads/editor/**", 
-				"/favicon.ico", "/WEB-INF/views/**"};
+				"/favicon.ico", "/WEB-INF/views/**", "/ws-chat/**"};
 		
 		http.cors(Customizer.withDefaults()) // CORS 설정 : 기본값 사용
 			.csrf(AbstractHttpConfigurer::disable) // CSRF 비활성화

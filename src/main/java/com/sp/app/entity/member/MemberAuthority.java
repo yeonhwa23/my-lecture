@@ -46,6 +46,6 @@ public class MemberAuthority {
      * @MapsId 대신 insertable/updatable=false 로 공유
      */
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "login_id", insertable = false, updatable = false)
+    @JoinColumn(name = "login_id", referencedColumnName = "login_id", insertable = false, updatable = false)
     private Member member;
 }

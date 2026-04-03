@@ -1,9 +1,10 @@
 package com.sp.app.service;
 
+import java.util.List;
+
+import com.sp.app.controller.ChatController;
 import com.sp.app.domain.dto.WorkspaceDto;
 import com.sp.app.domain.dto.WorkspaceMemberDto;
-
-import java.util.List;
 
 public interface WorkspaceService {
 
@@ -27,4 +28,10 @@ public interface WorkspaceService {
 
     /** 멤버 역할 변경 (owner만 가능) */
     void updateMemberRole(Long workspaceId, WorkspaceMemberDto.RoleUpdateRequest request, Long requestMemberId);
+    
+    // 채팅 메시지 저장
+    void saveChatMessage(Long channelId, Long memberId, String content);
+
+    // 이전 채팅 내역 불러오기
+    List<ChatController.ChatMessageResponse> getChatHistory(Long channelId);
 }

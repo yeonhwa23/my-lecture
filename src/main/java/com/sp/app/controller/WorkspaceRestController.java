@@ -46,7 +46,7 @@ public class WorkspaceRestController {
     // ----------------------------------------------------------------
     @GetMapping("/check-slug")
     public ResponseEntity<WorkspaceDto.SlugCheckResponse> checkSlug(
-            @RequestParam String slug) {
+            @RequestParam("slug") String slug) { // <-- 수정됨
 
         return ResponseEntity.ok(workspaceService.checkSlug(slug));
     }
@@ -68,7 +68,7 @@ public class WorkspaceRestController {
     // ----------------------------------------------------------------
     @GetMapping("/{workspaceId}/members")
     public ResponseEntity<List<WorkspaceMemberDto.Response>> getMembers(
-            @PathVariable Long workspaceId) {
+            @PathVariable("workspaceId") Long workspaceId) { // <-- 수정됨
 
         return ResponseEntity.ok(workspaceService.getMembers(workspaceId));
     }
@@ -78,8 +78,8 @@ public class WorkspaceRestController {
     // ----------------------------------------------------------------
     @DeleteMapping("/{workspaceId}/members/{targetMemberId}")
     public ResponseEntity<Void> kickMember(
-            @PathVariable Long workspaceId,
-            @PathVariable Long targetMemberId,
+            @PathVariable("workspaceId") Long workspaceId,       // <-- 수정됨
+            @PathVariable("targetMemberId") Long targetMemberId, // <-- 수정됨
             @AuthenticationPrincipal UserDetails userDetails) {
 
         workspaceService.kickMember(workspaceId, targetMemberId, getMemberId(userDetails));
@@ -91,7 +91,7 @@ public class WorkspaceRestController {
     // ----------------------------------------------------------------
     @PatchMapping("/{workspaceId}/members/role")
     public ResponseEntity<Void> updateRole(
-            @PathVariable Long workspaceId,
+            @PathVariable("workspaceId") Long workspaceId, // <-- 수정됨
             @RequestBody WorkspaceMemberDto.RoleUpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 

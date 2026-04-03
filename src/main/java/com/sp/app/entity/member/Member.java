@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -83,12 +84,14 @@ public class Member {
     @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private MemberDetail memberDetail;
 
-    /** 권한 (1:1 — login_id PK) */
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    /** 권한 (1:1 — login_id 로 연결) */
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "login_id", referencedColumnName = "login_id", insertable = false, updatable = false)
     private MemberAuthority memberAuthority;
 
-    /** 리프레시 토큰 (1:1 — login_id PK) */
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    /** 리프레시 토큰 (1:1 — login_id 로 연결) */
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JoinColumn(name = "login_id", referencedColumnName = "login_id", insertable = false, updatable = false)
     private RefreshToken refreshToken;
 
     // ──────────────────────────────────────────────
