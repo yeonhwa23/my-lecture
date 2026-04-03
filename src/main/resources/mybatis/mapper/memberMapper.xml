@@ -130,7 +130,7 @@
 			authority
 		FROM member1 m1
 		LEFT OUTER JOIN member2 m2 ON m1.member_id = m2.member_id
-		LEFT OUTER JOIN memberAuthority m3 ON m1.login_id = m3.login_id
+		LEFT OUTER JOIN member_authority m3 ON m1.login_id = m3.login_id
 		WHERE m1.member_id = #{member_id}
 	</select>
 
@@ -142,7 +142,7 @@
 			authority
 		FROM member1 m1
 		LEFT OUTER JOIN member2 m2 ON m1.member_id = m2.member_id
-		LEFT OUTER JOIN memberAuthority m3 ON m1.login_id = m3.login_id
+		LEFT OUTER JOIN member_authority m3 ON m1.login_id = m3.login_id
 		WHERE m1.login_id = #{login_id}
 	</select>
 
@@ -205,18 +205,18 @@
 
 	<!-- 어쏘러티(권한) 테이블 --> 
 	<insert id="insertAuthority" parameterType="com.sp.app.domain.dto.MemberDto">
-		INSERT INTO memberAuthority(login_id, authority)
+		INSERT INTO member_authority(login_id, authority)
 		VALUES (#{login_id}, #{authority})
 	</insert>
 
 	<delete id="deleteAuthority" parameterType="map">
-		DELETE FROM memberAuthority
+		DELETE FROM member_authority
 		WHERE login_id = #{login_id}
 	</delete>
 
 	<select id="findByAuthority" parameterType="String" resultType="String">
 		SELECT authority
-		FROM memberAuthority
+		FROM member_authority
 		WHERE login_id = #{login_id}
 	</select>
 	

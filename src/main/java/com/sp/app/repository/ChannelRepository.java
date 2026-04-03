@@ -2,8 +2,10 @@ package com.sp.app.repository;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.sp.app.entity.workspace.Channel;
 
@@ -27,4 +29,15 @@ public interface ChannelRepository extends JpaRepository<Channel, Long> {
     """)
     List<Channel> findJoinedChannels(@Param("workspaceId") Long workspaceId,
                                      @Param("memberId") Long memberId);
+    
+    /** ✅ 채널 생성용 네이티브 쿼리 추가 (에러 방지용) */
+    @Modifying
+    @Transactional
+    @Query(value = """
+        INSERT INTO channels (channel_id, workspace_id, ch_name, description, is_archived, is_private, created_by, created_at) 
+        VALUES (channels_seq.NEXTVAL, :workspaceId, :chName, '새로운 채널입니다.', 0, 0, :memberId, SYSDATE)
+    """, nativeQuery = true)
+    void insertChannel(@Param("workspaceId") Long workspaceId, 
+                       @Param("chName") String chName, 
+                       @Param("memberId") Long memberId);
 }

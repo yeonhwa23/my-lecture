@@ -1,10 +1,7 @@
 package com.sp.app.entity.member;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,15 +34,4 @@ public class MemberAuthority {
     @Column(name = "authority", nullable = false, length = 100)
     private String authority;
 
-    // ──────────────────────────────────────────────
-    // 연관관계
-    // ──────────────────────────────────────────────
-
-    /**
-     * member1.login_id → 연결
-     * @MapsId 대신 insertable/updatable=false 로 공유
-     */
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "login_id", referencedColumnName = "login_id", insertable = false, updatable = false)
-    private Member member;
 }
