@@ -5,11 +5,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.sp.app.common.FileManager;
 import com.sp.app.controller.ChatController.ChatMessageResponse;
 import com.sp.app.domain.dto.WorkspaceDto;
 import com.sp.app.domain.dto.WorkspaceMemberDto;
@@ -36,6 +39,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final MemberRepository          memberRepository;
     private final ChannelRepository channelRepository;
     private final MessageRepository messageRepository;
+    @Autowired
+    private FileManager fileManager;
 
     @Override
     @Transactional
@@ -52,7 +57,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         Workspace workspace = Workspace.builder()
                 .wsName(request.getWsName())
                 .slug(request.getSlug())
+                .description(request.getDescription())
                 .iconUrl(request.getIconUrl())
+                .bannerUrl(request.getBannerUrl())
                 .owner(owner)
                 .build();
         workspaceRepository.save(workspace);
@@ -70,6 +77,46 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         return WorkspaceDto.Response.from(workspace);
     }
+    
+    @Override
+    @Transactional
+    public void updateWorkspaceSettings(Long workspaceId, Long requestMemberId, String wsName, String description,
+            String iconString, MultipartFile iconFile, MultipartFile bannerFile, boolean removeBanner, String pathname) throws Exception {
+        
+        // 1. 워크스페이스 조회
+        Workspace ws = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 워크스페이스입니다."));
+
+        // 2. 방장 권한 확인
+        if (!ws.getOwner().getMemberId().equals(requestMemberId)) {
+            throw new SecurityException("설정은 방장만 변경할 수 있습니다.");
+        }
+
+        // 3. 기본 정보 수정
+        ws.setWsName(wsName);
+        ws.setDescription(description);
+
+        // 4. 아이콘 처리 
+        if (iconFile != null && !iconFile.isEmpty()) {
+            String saveFilename = fileManager.doFileUpload(iconFile, pathname);
+            ws.setIconUrl("/uploads/workspace/" + saveFilename);
+        } else if (iconString != null && !iconString.trim().isEmpty()) {
+            ws.setIconUrl(iconString);
+        } else if (iconString != null && iconString.trim().isEmpty()) {
+            ws.setIconUrl(null);
+        }
+
+        // 5. 배너 이미지 처리
+        if (bannerFile != null && !bannerFile.isEmpty()) {
+            String saveFilename = fileManager.doFileUpload(bannerFile, pathname);
+            ws.setBannerUrl("/uploads/workspace/" + saveFilename);
+        } else if (removeBanner) {
+            // 프론트에서 removeBanner=true 로 전송 = 배너 삭제 요청
+            ws.setBannerUrl(null);
+        }
+
+    }
+
 
     @Override
     public List<WorkspaceDto.Response> getMyWorkspaces(Long loginMemberId) {

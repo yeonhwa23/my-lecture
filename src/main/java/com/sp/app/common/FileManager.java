@@ -15,6 +15,7 @@ import java.util.zip.ZipOutputStream;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.FileSystemUtils;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.sp.app.exception.StorageException;
 
@@ -235,6 +236,42 @@ public class FileManager {
 		} catch (Exception e) {
 			throw new StorageException("Failed to read stored files", e);
 		}
+	}
+	
+	/**
+	 * 실제 서버 하드디스크에 파일을 업로드(저장)하는 메서드
+	 * @param multipartFile 업로드할 파일 객체 (이미지 등)
+	 * @param pathname 파일을 저장할 실제 폴더 경로
+	 * @return 저장된 고유 파일명 (실패 시 null)
+	 * @throws Exception
+	 */
+	public String doFileUpload(MultipartFile multipartFile, String pathname) throws Exception {
+		if (multipartFile == null || multipartFile.isEmpty()) {
+			return null;
+		}
+
+		// 1. 저장할 폴더가 없으면 미리 생성해 줍니다.
+		File dir = new File(pathname);
+		if (!dir.exists()) {
+			dir.mkdirs();
+		}
+
+		// 2. 원본 파일의 확장자(ex: .png, .jpg)를 추출합니다.
+		String originalFilename = multipartFile.getOriginalFilename();
+		String ext = "";
+		if (originalFilename != null && originalFilename.contains(".")) {
+			ext = originalFilename.substring(originalFilename.lastIndexOf("."));
+		}
+
+		// 3. 중복되지 않는 고유한 파일명을 생성합니다. (이미 있는 메서드 활용)
+		String saveFilename = generateUniqueFileName(pathname, ext);
+		
+		// 4. 파일을 지정된 경로에 최종 저장합니다.
+		String fullPath = pathname + File.separator + saveFilename;
+		multipartFile.transferTo(new File(fullPath));
+
+		// 5. DB에 저장할 수 있도록 생성된 파일명을 반환합니다.
+		return saveFilename;
 	}
 	
 }

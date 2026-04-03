@@ -81,7 +81,7 @@ public class SpringSecurityConfig {
 		
 		String[] excludeUri = { "/", "/member/login", "/member/logout",
 				"/member/pwdFind", "/member/expired", "/dist/**",
-				"/uploads/image/**", "/uploads/editor/**", 
+				"/uploads/**",          // 업로드 파일 전체 허용 (이미지, 워크스페이스 등)
 				"/favicon.ico", "/WEB-INF/views/**", "/ws-chat/**"};
 		
 		http.cors(Customizer.withDefaults()) // CORS 설정 : 기본값 사용

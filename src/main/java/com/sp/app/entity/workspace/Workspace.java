@@ -15,6 +15,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -50,9 +51,21 @@ public class Workspace {
 
     @Column(name = "icon_url", length = 500)
     private String iconUrl;
+    
+    /** 워크스페이스 설명 */
+    @Column(name = "description", length = 1000)
+    private String description;
+
+    /** 배너 이미지 URL */
+    @Column(name = "banner_url", length = 500)
+    private String bannerUrl;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+    
+    /** 수정 일자 */
+    @Column(name = "update_at")
+    private LocalDateTime updateAt;
 
     // ──────────────────────────────────────────────
     // 연관관계
@@ -72,5 +85,11 @@ public class Workspace {
     @PrePersist
     public void prePersist() {
         this.createdAt = LocalDateTime.now();
+    }
+    
+    // 워크스페이스 엔티티가 변경(수정)될 때 자동으로 수정 시간 갱신
+    @PreUpdate
+    public void preUpdate() {
+        this.updateAt = LocalDateTime.now();
     }
 }

@@ -2,6 +2,8 @@ package com.sp.app.service;
 
 import java.util.List;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import com.sp.app.controller.ChatController;
 import com.sp.app.domain.dto.WorkspaceDto;
 import com.sp.app.domain.dto.WorkspaceMemberDto;
@@ -10,7 +12,11 @@ public interface WorkspaceService {
 
     /** 워크스페이스 생성 (생성자를 owner로 workspace_members에 함께 INSERT) */
     WorkspaceDto.Response createWorkspace(WorkspaceDto.CreateRequest request, Long loginMemberId);
-
+    
+    /** 워크스페이스 설정 업데이트 (방장 전용) */
+    void updateWorkspaceSettings(Long workspaceId, Long requestMemberId, String wsName, String description,
+            String iconString, MultipartFile iconFile, MultipartFile bannerFile, boolean removeBanner, String pathname) throws Exception;
+    
     /** 내가 속한 워크스페이스 목록 조회 */
     List<WorkspaceDto.Response> getMyWorkspaces(Long loginMemberId);
 
