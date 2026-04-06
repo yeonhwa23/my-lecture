@@ -22,12 +22,10 @@ public class PageRestController {
 
     private final PageService pageService;
 
-    // ----------------------------------------------------------------
     // POST /api/workspaces/{workspaceId}/pages — 페이지 생성
-    // ----------------------------------------------------------------
     @PostMapping("/workspaces/{workspaceId}/pages")
     public ResponseEntity<PageDto.Response> createPage(
-            @PathVariable Long workspaceId,
+            @PathVariable("workspaceId") Long workspaceId,
             @RequestBody PageDto.CreateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
@@ -36,32 +34,26 @@ public class PageRestController {
                 .body(pageService.createPage(workspaceId, request, getMemberId(userDetails)));
     }
 
-    // ----------------------------------------------------------------
     // GET /api/workspaces/{workspaceId}/pages — 페이지 트리 조회 (사이드바)
-    // ----------------------------------------------------------------
     @GetMapping("/workspaces/{workspaceId}/pages")
     public ResponseEntity<List<PageDto.TreeNode>> getPageTree(
-            @PathVariable Long workspaceId) {
+            @PathVariable("workspaceId") Long workspaceId) {
 
         return ResponseEntity.ok(pageService.getPageTree(workspaceId));
     }
 
-    // ----------------------------------------------------------------
     // GET /api/pages/{pageId} — 페이지 단건 조회 (에디터)
-    // ----------------------------------------------------------------
     @GetMapping("/pages/{pageId}")
     public ResponseEntity<PageDto.Response> getPage(
-            @PathVariable Long pageId) {
+            @PathVariable("pageId") Long pageId) {
 
         return ResponseEntity.ok(pageService.getPage(pageId));
     }
 
-    // ----------------------------------------------------------------
     // PUT /api/pages/{pageId} — 페이지 수정 (에디터 자동저장)
-    // ----------------------------------------------------------------
     @PutMapping("/pages/{pageId}")
     public ResponseEntity<PageDto.Response> updatePage(
-            @PathVariable Long pageId,
+            @PathVariable("pageId") Long pageId,
             @RequestBody PageDto.UpdateRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
@@ -69,28 +61,20 @@ public class PageRestController {
                 pageService.updatePage(pageId, request, getMemberId(userDetails)));
     }
 
-    // ----------------------------------------------------------------
     // DELETE /api/pages/{pageId} — 페이지 소프트 삭제
-    // ----------------------------------------------------------------
     @DeleteMapping("/pages/{pageId}")
     public ResponseEntity<Void> deletePage(
-            @PathVariable Long pageId,
+            @PathVariable("pageId") Long pageId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         pageService.deletePage(pageId, getMemberId(userDetails));
         return ResponseEntity.noContent().build();
     }
 
-    // ----------------------------------------------------------------
-    // POST /api/pages/{pageId}/bookmark
-    // 채팅 메시지를 페이지 블록으로 추가 (북마크 핵심 기능)
-    //
-    // Request Body:
-    //   { "messageId": 123, "content": "메시지 텍스트" }
-    // ----------------------------------------------------------------
+    // POST /api/pages/{pageId}/bookmark — 채팅 메시지를 페이지에 아카이빙
     @PostMapping("/pages/{pageId}/bookmark")
     public ResponseEntity<?> bookmarkMessage(
-            @PathVariable Long pageId,
+            @PathVariable("pageId") Long pageId,
             @RequestBody PageDto.BookmarkRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
@@ -98,7 +82,6 @@ public class PageRestController {
             pageService.bookmarkMessageToPage(pageId, request, getMemberId(userDetails));
             return ResponseEntity.ok(Map.of("message", "메시지가 페이지에 추가되었습니다."));
         } catch (IllegalStateException e) {
-            // 중복 북마크
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("message", e.getMessage()));
         } catch (IllegalArgumentException e) {
@@ -107,7 +90,6 @@ public class PageRestController {
         }
     }
 
-    // ── 헬퍼 ────────────────────────────────────────────────────────
     private Long getMemberId(UserDetails userDetails) {
         if (userDetails instanceof CustomUserDetails custom) {
             return custom.getMemberId();

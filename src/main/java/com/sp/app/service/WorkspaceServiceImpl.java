@@ -37,11 +37,12 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final WorkspaceRepository       workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final MemberRepository          memberRepository;
-    private final ChannelRepository channelRepository;
-    private final MessageRepository messageRepository;
+    private final ChannelRepository         channelRepository;
+    private final MessageRepository         messageRepository;
     @Autowired
     private FileManager fileManager;
 
+    // ── 워크스페이스 생성 ──────────────────────────────────────────────
     @Override
     @Transactional
     public WorkspaceDto.Response createWorkspace(WorkspaceDto.CreateRequest request, Long loginMemberId) {
@@ -53,7 +54,6 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         Member owner = memberRepository.findById(loginMemberId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
-        // 1) workspaces INSERT
         Workspace workspace = Workspace.builder()
                 .wsName(request.getWsName())
                 .slug(request.getSlug())
@@ -64,8 +64,6 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 .build();
         workspaceRepository.save(workspace);
 
-        // 2) workspace_members INSERT (owner 권한)
-        // @IdClass 방식: workspaceId/memberId 필드 직접 세팅
         WorkspaceMember workspaceMember = WorkspaceMember.builder()
                 .workspaceId(workspace.getWorkspaceId())
                 .memberId(loginMemberId)
@@ -77,26 +75,23 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         return WorkspaceDto.Response.from(workspace);
     }
-    
+
+    // ── 워크스페이스 설정 업데이트 ────────────────────────────────────
     @Override
     @Transactional
     public void updateWorkspaceSettings(Long workspaceId, Long requestMemberId, String wsName, String description,
             String iconString, MultipartFile iconFile, MultipartFile bannerFile, boolean removeBanner, String pathname) throws Exception {
-        
-        // 1. 워크스페이스 조회
+
         Workspace ws = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 워크스페이스입니다."));
 
-        // 2. 방장 권한 확인
         if (!ws.getOwner().getMemberId().equals(requestMemberId)) {
             throw new SecurityException("설정은 방장만 변경할 수 있습니다.");
         }
 
-        // 3. 기본 정보 수정
         ws.setWsName(wsName);
         ws.setDescription(description);
 
-        // 4. 아이콘 처리 
         if (iconFile != null && !iconFile.isEmpty()) {
             String saveFilename = fileManager.doFileUpload(iconFile, pathname);
             ws.setIconUrl("/uploads/workspace/" + saveFilename);
@@ -106,18 +101,15 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             ws.setIconUrl(null);
         }
 
-        // 5. 배너 이미지 처리
         if (bannerFile != null && !bannerFile.isEmpty()) {
             String saveFilename = fileManager.doFileUpload(bannerFile, pathname);
             ws.setBannerUrl("/uploads/workspace/" + saveFilename);
         } else if (removeBanner) {
-            // 프론트에서 removeBanner=true 로 전송 = 배너 삭제 요청
             ws.setBannerUrl(null);
         }
-
     }
 
-
+    // ── 내 워크스페이스 목록 ──────────────────────────────────────────
     @Override
     public List<WorkspaceDto.Response> getMyWorkspaces(Long loginMemberId) {
         return workspaceRepository.findAllByMemberId(loginMemberId)
@@ -132,6 +124,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         return new WorkspaceDto.SlugCheckResponse(available, slug);
     }
 
+    // ── 슬러그로 참여 ─────────────────────────────────────────────────
     @Override
     @Transactional
     public WorkspaceDto.Response joinBySlug(String slug, Long loginMemberId) {
@@ -210,59 +203,62 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         target.setWsRole(request.getNewRole());
     }
-    
+
+    // ── 채팅 메시지 저장 ✅ void → Long 으로 변경 ────────────────────
     @Override
     @Transactional
-    public void saveChatMessage(Long channelId, Long memberId, String content) {
-        // 1. 대문자가 아니라 소문자로 시작하는 객체 변수명(channelRepository)을 사용해야 합니다!
-        Channel channel = channelRepository.findById(channelId)
-            .orElseThrow(() -> new IllegalArgumentException("채널을 찾을 수 없습니다."));
-            
-        Member member = memberRepository.findById(memberId)
-            .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+    public Long saveChatMessage(Long channelId, Long memberId, String content) {
 
-        // 2. Message 엔티티 생성
+        Channel channel = channelRepository.findById(channelId)
+                .orElseThrow(() -> new IllegalArgumentException("채널을 찾을 수 없습니다."));
+
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
+
         Message message = Message.builder()
                 .channel(channel)
                 .member(member)
                 .content(content)
-                .isBot(0) // 일반 유저 메시지
+                .isBot(0)
                 .build();
 
-        // 3. 소문자 messageRepository 사용!
         messageRepository.save(message);
+
+        // ✅ 저장 후 생성된 PK 반환 → ChatController에서 응답에 포함
+        return message.getMessageId();
     }
 
+    // ── 채팅 히스토리 조회 ────────────────────────────────────────────
     @Override
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> getChatHistory(Long channelId) {
-        
+
         PageRequest pageRequest = PageRequest.of(0, 50);
-        Slice<Message> messageSlice = messageRepository.findByChannelCursor(channelId, LocalDateTime.now(), pageRequest);
+        Slice<Message> messageSlice = messageRepository.findByChannelCursor(
+                channelId, LocalDateTime.now(), pageRequest);
 
-        List<Message> messages = messageSlice.getContent();
-        
-        List<ChatMessageResponse> responseList = messages.stream().map(msg -> {
-            ChatMessageResponse response = new ChatMessageResponse();
-            response.setChannelId(channelId);
-            
-            if (msg.getMember() != null) {
-                response.setMemberId(msg.getMember().getMemberId());
-                // ✅ getUsername() 대신 존재하는 메서드인 getLoginId() 사용!
-                // 만약 진짜 이름을 쓰고 싶다면 msg.getMember().getMemberDetail().getName() 으로 쓸 수 있습니다.
-                response.setSenderName(msg.getMember().getLoginId()); 
-            } else {
-                response.setMemberId(-1L);
-                response.setSenderName("알 수 없는 사용자");
-            }
-            response.setContent(msg.getContent());
-            response.setSendTime(msg.getCreatedAt().toString());
-            return response;
-        }).collect(Collectors.toList());
+        List<ChatMessageResponse> responseList = messageSlice.getContent().stream()
+                .map(msg -> {
+                    ChatMessageResponse response = new ChatMessageResponse();
+                    response.setMessageId(msg.getMessageId()); // ✅ 히스토리에도 messageId 포함
+                    response.setChannelId(channelId);
 
-        // 최신순을 오래된 순(위에서 아래로 읽게)으로 뒤집기
+                    if (msg.getMember() != null) {
+                        response.setMemberId(msg.getMember().getMemberId());
+                        response.setSenderName(msg.getMember().getLoginId());
+                    } else {
+                        response.setMemberId(-1L);
+                        response.setSenderName("알 수 없는 사용자");
+                    }
+
+                    response.setContent(msg.getContent());
+                    response.setSendTime(msg.getCreatedAt().toString());
+                    return response;
+                })
+                .collect(Collectors.toList());
+
+        // 최신순 → 오래된 순으로 뒤집기
         Collections.reverse(responseList);
-
         return responseList;
     }
 }
