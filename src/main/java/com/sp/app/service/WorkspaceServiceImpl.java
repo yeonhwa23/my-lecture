@@ -19,10 +19,12 @@ import com.sp.app.domain.dto.WorkspaceMemberDto;
 import com.sp.app.entity.member.Member;
 import com.sp.app.entity.workspace.Channel;
 import com.sp.app.entity.workspace.Message;
+import com.sp.app.entity.workspace.MessageAttachment;
 import com.sp.app.entity.workspace.Workspace;
 import com.sp.app.entity.workspace.WorkspaceMember;
 import com.sp.app.repository.ChannelRepository;
 import com.sp.app.repository.MemberRepository;
+import com.sp.app.repository.MessageAttachmentRepository;
 import com.sp.app.repository.MessageRepository;
 import com.sp.app.repository.WorkspaceMemberRepository;
 import com.sp.app.repository.WorkspaceRepository;
@@ -34,11 +36,12 @@ import lombok.RequiredArgsConstructor;
 @Transactional(readOnly = true)
 public class WorkspaceServiceImpl implements WorkspaceService {
 
-    private final WorkspaceRepository       workspaceRepository;
-    private final WorkspaceMemberRepository workspaceMemberRepository;
-    private final MemberRepository          memberRepository;
-    private final ChannelRepository         channelRepository;
-    private final MessageRepository         messageRepository;
+    private final WorkspaceRepository           workspaceRepository;
+    private final WorkspaceMemberRepository     workspaceMemberRepository;
+    private final MemberRepository              memberRepository;
+    private final ChannelRepository             channelRepository;
+    private final MessageRepository             messageRepository;
+    private final MessageAttachmentRepository   messageAttachmentRepository;
     @Autowired
     private FileManager fileManager;
 
@@ -204,10 +207,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         target.setWsRole(request.getNewRole());
     }
 
-    // ── 채팅 메시지 저장 ✅ void → Long 으로 변경 ────────────────────
+    // ── 채팅 메시지 저장 (첨부파일 포함) ─────────────────────────────
     @Override
     @Transactional
-    public Long saveChatMessage(Long channelId, Long memberId, String content) {
+    public Long saveChatMessage(Long channelId, Long memberId, String content,
+                                String imageUrl, String fileUrl, String fileName) {
 
         Channel channel = channelRepository.findById(channelId)
                 .orElseThrow(() -> new IllegalArgumentException("채널을 찾을 수 없습니다."));
@@ -215,16 +219,44 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new IllegalArgumentException("회원을 찾을 수 없습니다."));
 
+        // 파일만 보낼 때 content가 null → ORA-01400 방지
+        String safeContent = (content != null && !content.isBlank()) ? content : " ";
+
+
         Message message = Message.builder()
                 .channel(channel)
                 .member(member)
-                .content(content)
+                .content(safeContent)
                 .isBot(0)
                 .build();
 
         messageRepository.save(message);
 
-        // ✅ 저장 후 생성된 PK 반환 → ChatController에서 응답에 포함
+        // 이미지 첨부
+        if (imageUrl != null && !imageUrl.isBlank()) {
+            String guessedName = imageUrl.contains("/") 
+                ? imageUrl.substring(imageUrl.lastIndexOf('/') + 1) 
+                : "image";
+            messageAttachmentRepository.save(MessageAttachment.builder()
+                    .message(message)
+                    .fileUrl(imageUrl)
+                    .fileName(guessedName)
+                    .fileSize(0L)
+                    .mimeType("image/*")
+                    .build());
+        }
+
+        // 일반 파일 첨부
+        if (fileUrl != null && !fileUrl.isBlank()) {
+            messageAttachmentRepository.save(MessageAttachment.builder()
+                    .message(message)
+                    .fileUrl(fileUrl)
+                    .fileName(fileName != null ? fileName : "file")
+                    .fileSize(0L)
+                    .mimeType("application/octet-stream")
+                    .build());
+        }
+
         return message.getMessageId();
     }
 
@@ -240,7 +272,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         List<ChatMessageResponse> responseList = messageSlice.getContent().stream()
                 .map(msg -> {
                     ChatMessageResponse response = new ChatMessageResponse();
-                    response.setMessageId(msg.getMessageId()); // ✅ 히스토리에도 messageId 포함
+                    response.setMessageId(msg.getMessageId());
                     response.setChannelId(channelId);
 
                     if (msg.getMember() != null) {
@@ -253,11 +285,23 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
                     response.setContent(msg.getContent());
                     response.setSendTime(msg.getCreatedAt().toString());
+
+                    // 첨부파일 정보 포함 (첫 번째 첨부파일 기준)
+                    if (msg.getAttachments() != null && !msg.getAttachments().isEmpty()) {
+                        MessageAttachment att = msg.getAttachments().get(0);
+                        String mime = att.getMimeType();
+                        if (mime != null && mime.startsWith("image")) {
+                            response.setImageUrl(att.getFileUrl());
+                        } else {
+                            response.setFileUrl(att.getFileUrl());
+                            response.setFileName(att.getFileName());
+                        }
+                    }
+
                     return response;
                 })
                 .collect(Collectors.toList());
 
-        // 최신순 → 오래된 순으로 뒤집기
         Collections.reverse(responseList);
         return responseList;
     }

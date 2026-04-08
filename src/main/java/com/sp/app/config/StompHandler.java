@@ -1,6 +1,7 @@
 package com.sp.app.config;
 
 import com.sp.app.security.JwtTokenProvider;
+import io.jsonwebtoken.ExpiredJwtException; // ✨ 예외 처리용 import 추가
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -28,11 +29,21 @@ public class StompHandler implements ChannelInterceptor {
 
             if (jwtToken != null && jwtToken.startsWith("Bearer ")) {
                 jwtToken = jwtToken.substring(7);
-                // 토큰 검증 실패 시 예외 발생 -> 웹소켓 연결 강제 차단
-                if (!jwtTokenProvider.validateToken(jwtToken)) { // 메서드명은 실제 JwtTokenProvider에 맞게 수정하세요 (예: validateToken)
-                    log.error("웹소켓 연결 실패: 유효하지 않은 JWT 토큰");
-                    throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+                
+                try {
+                    // 토큰 검증 실패 시 예외 발생 -> 웹소켓 연결 강제 차단
+                    if (!jwtTokenProvider.validateToken(jwtToken)) { 
+                        log.error("웹소켓 연결 실패: 유효하지 않은 JWT 토큰");
+                        throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
+                    }
+                } catch (ExpiredJwtException e) {
+                    log.warn("웹소켓 연결 차단: 만료된 토큰이 요청되었습니다. (프론트 재로그인 필요)");
+                    throw new IllegalArgumentException("만료된 토큰입니다.");
+                } catch (Exception e) {
+                    log.error("웹소켓 연결 차단: 토큰 검증 중 오류 발생 - {}", e.getMessage());
+                    throw new IllegalArgumentException("토큰 검증 오류가 발생했습니다.");
                 }
+                
             } else {
                 log.error("웹소켓 연결 실패: JWT 토큰 누락");
                 throw new IllegalArgumentException("토큰이 존재하지 않습니다.");

@@ -27,20 +27,30 @@ public class ChatController {
             @DestinationVariable("channelId") Long channelId,
             ChatMessageRequest request) {
 
-        // ✅ 저장 후 생성된 messageId를 반환받아야 북마크 가능
-        // WorkspaceService.saveChatMessage() 가 저장된 Message 엔티티(또는 ID)를 반환하도록 수정 필요
+        // ✅ 파일만 보낼 때 content가 null이면 ORA-01400 발생 → 빈 문자열로 대체
+    	String content = (request.getContent() != null && !request.getContent().isBlank())
+    	        ? request.getContent()
+    	        : "(파일 첨부)"; 
+
+        // ✅ 첨부파일 정보를 함께 저장 (imageUrl / fileUrl / fileName)
         Long savedMessageId = workspaceService.saveChatMessage(
-                channelId, request.getMemberId(), request.getContent());
+                channelId,
+                request.getMemberId(),
+                content,
+                request.getImageUrl(),
+                request.getFileUrl(),
+                request.getFileName()
+        );
 
         ChatMessageResponse response = new ChatMessageResponse();
-        response.setMessageId(savedMessageId);        // ✅ 핵심: messageId 포함
+        response.setMessageId(savedMessageId);
         response.setChannelId(channelId);
         response.setMemberId(request.getMemberId());
         response.setSenderName(request.getSenderName());
-        response.setContent(request.getContent());
-        response.setImageUrl(request.getImageUrl());  // ✅ 이미지 URL
-        response.setFileUrl(request.getFileUrl());    // ✅ 파일 URL
-        response.setFileName(request.getFileName());  // ✅ 파일명
+        response.setContent(content);
+        response.setImageUrl(request.getImageUrl());
+        response.setFileUrl(request.getFileUrl());
+        response.setFileName(request.getFileName());
         response.setSendTime(LocalDateTime.now().toString());
 
         return response;
@@ -61,21 +71,21 @@ public class ChatController {
         private Long   memberId;
         private String senderName;
         private String content;
-        private String imageUrl;   // ✅ 추가
-        private String fileUrl;    // ✅ 추가
-        private String fileName;   // ✅ 추가
+        private String imageUrl;
+        private String fileUrl;
+        private String fileName;
     }
 
     @Data
     public static class ChatMessageResponse {
-        private Long   messageId;  // ✅ 핵심: 북마크에 필요
+        private Long   messageId;
         private Long   channelId;
         private Long   memberId;
         private String senderName;
         private String content;
-        private String imageUrl;   // ✅ 추가
-        private String fileUrl;    // ✅ 추가
-        private String fileName;   // ✅ 추가
+        private String imageUrl;
+        private String fileUrl;
+        private String fileName;
         private String sendTime;
     }
 }

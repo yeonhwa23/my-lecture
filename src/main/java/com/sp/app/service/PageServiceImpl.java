@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode; 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sp.app.domain.dto.PageDto;
 import com.sp.app.entity.member.Member;
@@ -66,7 +67,7 @@ public class PageServiceImpl implements PageService {
                 .createdBy(member)
                 .title(request.getTitle() != null ? request.getTitle() : "제목 없는 페이지")
                 .iconEmoji(request.getIconEmoji())
-                .content("[]")
+                .content("{\"type\":\"doc\",\"content\":[]}") // ✨ [수정됨] Tiptap 에디터의 기본 JSON 형식으로 초기화
                 .build();
 
         pageRepository.save(page);
@@ -159,15 +160,27 @@ public class PageServiceImpl implements PageService {
             throw new IllegalStateException("이미 북마크된 메시지입니다.");
         }
 
-        // ── 페이지 content(JSON)에 텍스트 블록 추가 ──────────────────
-        // Tiptap 블록 형식: { "type": "paragraph", "content": [{ "type": "text", "text": "..." }] }
+        // ✨ [수정됨] 페이지 content(JSON)를 객체/배열 여부에 따라 안전하게 파싱 후 추가
         try {
-            List<Map<String, Object>> blocks = new ArrayList<>(
-                objectMapper.readValue(
-                    page.getContent() != null ? page.getContent() : "[]",
-                    new TypeReference<List<Map<String, Object>>>() {}
-                )
-            );
+            String currentContent = page.getContent() != null && !page.getContent().isBlank() ? page.getContent().trim() : "{\"type\":\"doc\",\"content\":[]}";
+            
+            JsonNode rootNode = objectMapper.readTree(currentContent);
+            
+            List<Map<String, Object>> blocks = new ArrayList<>();
+            Map<String, Object> docObject = null;
+            
+            if (rootNode.isObject()) {
+                // Tiptap 기본 형식: { "type": "doc", "content": [...] }
+                docObject = objectMapper.convertValue(rootNode, new TypeReference<Map<String, Object>>() {});
+                if (docObject.containsKey("content") && docObject.get("content") instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> existingBlocks = (List<Map<String, Object>>) docObject.get("content");
+                    blocks.addAll(existingBlocks);
+                }
+            } else if (rootNode.isArray()) {
+                // 배열 형식: [...] 
+                blocks.addAll(objectMapper.convertValue(rootNode, new TypeReference<List<Map<String, Object>>>() {}));
+            }
 
             // 구분선 블록
             blocks.add(Map.of("type", "horizontalRule"));
@@ -195,7 +208,17 @@ public class PageServiceImpl implements PageService {
                 ))
             ));
 
-            page.setContent(objectMapper.writeValueAsString(blocks));
+            String newContent;
+            if (docObject != null) {
+                // Object 형태였으면 content 부분만 교체해서 덮어쓰기
+                docObject.put("content", blocks);
+                newContent = objectMapper.writeValueAsString(docObject);
+            } else {
+                // Array 형태였으면 배열 자체를 덮어쓰기
+                newContent = objectMapper.writeValueAsString(blocks);
+            }
+
+            page.setContent(newContent);
 
         } catch (Exception e) {
             throw new RuntimeException("페이지 내용 업데이트 중 오류가 발생했습니다.", e);
